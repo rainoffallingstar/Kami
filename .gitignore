@@ -23,3 +23,8 @@ assets/examples/
 
 # Slides build artifact (moved into assets/examples/ by build.py)
 /output.pptx
+
+# Local Typst package cache used to compile optional Touying decks.
+/.typst-package-cache/
+/.typst-packages/
+/.tmp-typst-probe/

@@ -3,8 +3,9 @@
 
 Lets any MCP-capable agent use Kami as an engine (render + verify) without
 reading SKILL.md: judgment stays in the skill prompt, execution lives here.
-Render only trusted local HTML: referenced file, HTTP, and HTTPS resources load
-with this process's filesystem and network permissions.
+Render only trusted local HTML or Typst sources. HTML referenced files, HTTP, and
+HTTPS resources load with this process's filesystem and network permissions; Typst
+compilation is rooted to the repository and bundled font directory.
 Zero third-party dependencies for the protocol itself; tools that need
 weasyprint / pypdf / PyMuPDF surface the install hint as a tool error
 instead of crashing the server.
@@ -16,6 +17,7 @@ Tools:
     kami_templates   discover templates, diagram library, content schema types
     kami_doctor      report installed render, check, PPTX, and font capabilities
     kami_render      render a filled HTML file to PDF (WeasyPrint + highlight)
+    kami_render_typst compile a filled Typst file to PDF
     kami_check       run deterministic checks with stable findings and coverage
     kami_screenshot  rasterize a PDF to page PNGs plus the review checklist
 
@@ -39,7 +41,7 @@ from checks import (
 )
 from content import check_content
 from optional_deps import MissingDepError, doctor_report
-from render import render_pdf
+from render import render_pdf, render_typst_pdf
 from shared import (
     DIAGRAM_TEMPLATES,
     HTML_TEMPLATES,
@@ -47,6 +49,8 @@ from shared import (
     PPTX_TEMPLATES,
     ROOT,
     SCREEN_TEMPLATES,
+    TYPST_DIAGRAM_TEMPLATES,
+    TYPST_TEMPLATES,
     content_schema_types,
     kami_version,
 )
@@ -126,6 +130,23 @@ TOOLS = [
         },
     },
     {
+        "name": "kami_render_typst",
+        "description": (
+            "Compile a trusted local Typst source to PDF via the Typst compiler, "
+            "with repository-root imports and bundled font paths. Touying slide "
+            "sources additionally require the version-pinned package in Typst's "
+            "package cache. Returns the PDF path and page count."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["typst"],
+            "properties": {
+                "typst": {"type": "string", "description": "Path to the filled Typst source file"},
+                "out": {"type": "string", "description": "Output PDF path (default: same stem .pdf)"},
+            },
+        },
+    },
+    {
         "name": "kami_check",
         "description": (
             "Run Kami's deterministic checks for a file. HTML: placeholders + "
@@ -177,6 +198,8 @@ def tool_templates(_args: dict) -> dict:
     return {
         "version": kami_version(),
         "document_templates": {name: spec.source for name, spec in HTML_TEMPLATES.items()},
+        "typst_document_templates": {name: spec.source for name, spec in TYPST_TEMPLATES.items()},
+        "typst_diagram_templates": {name: spec.source for name, spec in TYPST_DIAGRAM_TEMPLATES.items()},
         "screen_templates": dict(SCREEN_TEMPLATES),
         "pptx_templates": dict(PPTX_TEMPLATES),
         "marp_templates": dict(MARP_TEMPLATES),
@@ -221,6 +244,29 @@ def tool_render(args: dict) -> dict:
     # render_pdf is the same pipeline build.py and verify.py use: highlight,
     # WeasyPrint, Kami metadata, page count.
     pages = render_pdf(html_path, out)
+    return {"pdf": str(out), "pages": pages}
+
+
+def tool_render_typst(args: dict) -> dict:
+    typst_path = _resolve(args["typst"])
+    if not typst_path.exists():
+        raise FileNotFoundError(f"Typst file not found: {typst_path}")
+    if typst_path.suffix.lower() != ".typ":
+        raise ValueError(f"input must be a Typst file: {typst_path.name}")
+    out = _resolve(args["out"]) if args.get("out") else typst_path.with_suffix(".pdf")
+    if out.suffix.lower() != ".pdf":
+        raise ValueError(f"output must use a .pdf suffix: {out.name}")
+    if out.is_symlink():
+        raise ValueError("output PDF must not be a symbolic link")
+    same_file = out.resolve(strict=False) == typst_path.resolve(strict=False)
+    if out.exists():
+        try:
+            same_file = same_file or os.path.samefile(typst_path, out)
+        except OSError:
+            pass
+    if same_file:
+        raise ValueError("output PDF must not overwrite the source Typst file")
+    pages = render_typst_pdf(typst_path, out)
     return {"pdf": str(out), "pages": pages}
 
 
@@ -337,6 +383,7 @@ TOOL_HANDLERS = {
     "kami_templates": tool_templates,
     "kami_doctor": tool_doctor,
     "kami_render": tool_render,
+    "kami_render_typst": tool_render_typst,
     "kami_check": tool_check,
     "kami_screenshot": tool_screenshot,
 }

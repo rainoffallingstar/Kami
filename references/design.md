@@ -868,7 +868,7 @@ add the smallest thing that works, and prefer an existing class over a new one.
 
 ## 8. Deck Recipe
 
-Slides in kami use WeasyPrint HTML to PDF as the primary rendering path. The pptx path (`slides.py`) is available as a fallback when the user explicitly requires an editable PPTX file.
+Slides in kami use WeasyPrint HTML to PDF as the primary rendering path. The pptx path (`slides.py`) is available as a fallback when the user explicitly requires an editable PPTX file. Typst offers an optional zero-package static deck and a Touying deck for native presentation semantics; see `references/production.md` Part 1A before selecting either Typst route.
 
 ### Architecture
 
@@ -991,6 +991,24 @@ If the user provides a real PPTX or brand template and explicitly asks to preser
 
 1. `letter-spacing` matters more than `font-size` for CJK density
 2. No white card panels on parchment; use border lines to divide
+
+### Typst variants
+
+The Typst sources live in `assets/templates/typst/` and preserve Kami's parchment,
+ink-blue, serif-led hierarchy, 16:9 aspect ratio, and assertion-first content rules.
+Choose one path deliberately:
+
+| Path | Files | Use when |
+|---|---|---|
+| Static Typst | `slides-weasy-typst*.typ` | You need an offline, zero-package, static PDF. |
+| Touying Typst | `slides-touying-typst*.typ` plus `touying.typ` | You need native `#slide` pages, counters, a controlled `#pause` reveal, speaker notes, or presenter tooling. Requires `@preview/touying:0.6.1`. |
+
+Touying's title slide is an explicit `#title-slide[...]`, and normal pages are
+explicit `#slide[...]` blocks. Keep the cover metadata within that slide, not in a
+separate page flow. For CJK decks, all labels use the locale serif rather than a
+Latin mono fallback, so Chinese and Korean text remains one embedded CJK family.
+Do not add `#pause` to create arbitrary movement: each reveal must clarify a causal
+or temporal argument, and the final handout must still read as a complete deck.
 
 ### Marp variant
 

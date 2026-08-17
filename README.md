@@ -131,12 +131,13 @@ The file has YAML frontmatter for structured fields like name, role, email, bran
 
 Warm parchment canvas `#f5f4ed`, ink blue `#1B365D` as the sole accent, serif carries hierarchy, no hard shadows or flashy palettes. Not a UI framework; a constraint system for printed matter. Documents should read as composed pages, not dashboards.
 
-- **Templates.** Eight document templates: One-Pager, Long Doc, Letter, Portfolio, Resume, Slides, Equity Report, and Changelog, plus a Landing Page system, in EN, CN, and KO.
-- **Diagrams.** Eighteen inline SVG types, including a report-scale architecture board. Sequence, class, and ER can be authored from Mermaid text: [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) renders the SVG and `scripts/mermaid_normalize.py` re-themes it to the Kami palette and makes it WeasyPrint-safe, no Node bundled.
-- **Slides.** Three rendering paths: WeasyPrint HTML to PDF by default, python-pptx for editable PPTX on request, and a Marp variant in `assets/templates/marp/` for Markdown-first decks.
+- **Templates.** Eight document templates: One-Pager, Long Doc, Letter, Portfolio, Resume, Slides, Equity Report, and Changelog, plus a Landing Page system, in EN, CN, and KO. The printable themes also have an optional Typst implementation under `assets/templates/typst/`.
+- **Diagrams.** Eighteen inline SVG types, including a report-scale architecture board. Each also has an optional native Typst source under `assets/diagrams/typst/`. Sequence, class, and ER can be authored from Mermaid text: [beautiful-mermaid](https://github.com/lukilabs/beautiful-mermaid) renders the SVG and `scripts/mermaid_normalize.py` re-themes it to the Kami palette and makes it WeasyPrint-safe, no Node bundled.
+- **Slides.** Three rendering paths: WeasyPrint HTML to PDF by default, python-pptx for editable PPTX on request, and a Marp variant in `assets/templates/marp/` for Markdown-first decks. The Typst implementation provides a zero-package static 16:9 deck and an optional Touying deck for native slide semantics, counters, progressive reveals, and presenter integrations.
+- **Typst.** An optional native PDF path mirrors all eight printable themes across CN, EN, and KO under `assets/templates/typst/`. Document and diagram sources use the same Kami palette and page contracts without external Typst packages. Touying slides pin `@preview/touying:0.6.1` and need that package available. Build targets with `python3 scripts/build.py --verify one-pager-typst-en` or `python3 scripts/build.py --verify slides-touying-typst-en`.
 - **Code.** Pygments-based syntax highlighting when `Pygments` is installed; without it, PDFs still render and code stays monochrome.
 - **Verification.** Deterministic quality gates: per-type content schemas validate structure before layout, an optional structured brief records the artifact's target and acceptance boundary, a coverage check confirms every fact survives into the filled page, and a visual pass exports page images against a fixed review checklist.
-- **MCP.** A zero-dependency MCP server (`scripts/mcp_server.py`) exposes capability diagnosis, render, structured check, and screenshot tools, so any MCP-capable agent can drive Kami as an engine without loading the full skill prompt. Render only trusted local HTML: referenced file, HTTP, and HTTPS resources load with the MCP process's permissions.
+- **MCP.** A zero-dependency MCP server (`scripts/mcp_server.py`) exposes capability diagnosis, HTML and Typst render, structured check, and screenshot tools, so any MCP-capable agent can drive Kami as an engine without loading the full skill prompt. Render only trusted local HTML or Typst sources: HTML referenced file, HTTP, and HTTPS resources load with the MCP process's permissions.
 - **Print.** Parchment is the default canvas; an opt-in white-paper variant flips any document to a white background for home or office printers, sinking the warmth into cards and tables so the hierarchy still reads. The [one-page Kami intro](assets/demos/demo-kami-print.pdf) (Chinese) is rendered with this variant; recipe in [production.md](references/production.md).
 
 Kami picks the right variant based on the language you write in.
@@ -144,6 +145,40 @@ Kami picks the right variant based on the language you write in.
 **Fonts**: Each language uses a single serif font for the entire page. Chinese: TsangerJinKai02. Japanese: YuMincho. Korean: Source Han Serif K. English: Charter. See [License](#license) for font terms.
 
 Full spec: [design.md](references/design.md). Cheatsheet: [CHEATSHEET.md](CHEATSHEET.md).
+
+## Typst PDF path
+
+Kami keeps the existing HTML and WeasyPrint workflow as the default, and adds a
+native Typst route when a portable `.typ` source or direct Typst-to-PDF build is
+preferable. The two engines are registered separately: Typst sources do not enter
+HTML CSS linting or placeholder parsing, but their rendered PDFs receive the same
+metadata, page-count, embedded-font, orphan, density, and visual checks.
+
+| What you need | Source and target |
+|---|---|
+| Printable documents | 24 CN, EN, and KO sources under `assets/templates/typst/`; for example `one-pager-typst-en` |
+| Standalone diagrams | 18 native Typst diagrams under `assets/diagrams/typst/`; for example `diagram-architecture-typst` |
+| Offline static slides | `slides-weasy-typst*`: a zero-package 16:9 Typst PDF deck |
+| Presentation features | `slides-touying-typst*`: Touying slides with native slide pages, counters, optional progressive reveals, speaker notes, and presenter integrations |
+
+Install [Typst](https://typst.app/) and use the normal Kami build command:
+
+```bash
+# Compile and verify one printable document or diagram.
+python3 scripts/build.py --verify one-pager-typst-en
+python3 scripts/build.py --verify diagram-architecture-typst
+
+# Pick one slide path. The first Touying build fetches its pinned package if needed.
+python3 scripts/build.py --verify slides-weasy-typst-en
+python3 scripts/build.py --verify slides-touying-typst-en
+```
+
+All document and diagram sources avoid Typst Universe packages and work offline
+once the Typst executable is installed. Touying is the intentional exception: its
+three slide sources pin `@preview/touying:0.6.1`, so the package must be available
+in Typst's cache or fetched during the first build. Use the static slide path when
+the environment has no network access. See [production.md](references/production.md)
+for package-cache guidance, font details, and the full verification boundary.
 
 ## Beyond Documents
 

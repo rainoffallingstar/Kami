@@ -292,6 +292,8 @@ For new documents built from raw material, validate the content IR before layout
 
 Marp variant deck (opt-in): `assets/templates/marp/`. Render with local `marp-cli`. See design.md §8 + production.md Part 2.5.
 
+Typst deck variants (opt-in): `assets/templates/typst/slides-weasy-typst*.typ` is a zero-package static 16:9 PDF deck. `assets/templates/typst/slides-touying-typst*.typ` uses `@preview/touying:0.6.1` for real slide functions, slide counters, progressive reveals, and presenter-tool integrations. Verify with `python3 scripts/build.py --verify slides-touying-typst-en`; choose the zero-package variant for offline rendering. See production.md Part 1A.
+
 ## Content quality (one rule per type)
 
 Full quality bars in `references/writing.md`. The single most important rule for each document type:

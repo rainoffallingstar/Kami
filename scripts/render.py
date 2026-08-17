@@ -21,9 +21,10 @@ from optional_deps import (
     MissingDepError,
     require_pypdf_reader,
     require_pypdf_writer,
+    require_typst,
     require_weasyprint_html,
 )
-from shared import EXAMPLES, TEMPLATES, pptx_targets
+from shared import EXAMPLES, ROOT, TEMPLATES, pptx_targets
 
 
 @functools.lru_cache(maxsize=1)
@@ -121,6 +122,50 @@ def render_pdf(src: Path, out: Path) -> int:
     ) as staging_dir:
         candidate = Path(staging_dir) / out.name
         HTML(string=html_text, base_url=str(src.parent)).write_pdf(str(candidate))
+        set_pdf_metadata(candidate, author=infer_author())
+        page_count = len(PdfReader(str(candidate)).pages)
+        os.replace(candidate, out)
+    return page_count
+
+
+def render_typst_pdf(src: Path, out: Path) -> int:
+    """Compile a Typst template to PDF through the same safe artifact contract.
+
+    Typst sources normally stay self-contained. Touying slide templates are the
+    explicit exception: Typst resolves their version-pinned Universe package through
+    its normal package cache. The renderer grants repository-root reads and bundled
+    fonts, then preserves the last successful output if compilation, metadata
+    stamping, or page inspection fails.
+    """
+    typst = require_typst()
+    PdfReader = require_pypdf_reader()
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    font_dir = ROOT / "assets" / "fonts"
+    with tempfile.TemporaryDirectory(
+        dir=out.parent,
+        prefix=f".{out.name}-",
+    ) as staging_dir:
+        candidate = Path(staging_dir) / out.name
+        result = subprocess.run(
+            [
+                typst,
+                "compile",
+                "--root", str(ROOT),
+                "--font-path", str(font_dir),
+                str(src),
+                str(candidate),
+            ],
+            cwd=str(src.parent),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip() or "compiler failed"
+            raise RuntimeError(f"Typst compilation failed for {src.name}: {detail}")
+        if not candidate.exists():
+            raise RuntimeError(f"Typst compilation did not produce {candidate.name}")
         set_pdf_metadata(candidate, author=infer_author())
         page_count = len(PdfReader(str(candidate)).pages)
         os.replace(candidate, out)

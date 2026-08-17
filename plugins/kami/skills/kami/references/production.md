@@ -107,6 +107,55 @@ bands unevenly and burns toner, where white paper prints clean. This is the one
 sanctioned exception to design.md invariant #1 ("never pure white"), and it is
 opt-in per document, never the default render.
 
+### Part 1A · Typst -> PDF (optional)
+
+The Typst path mirrors every printable Kami theme under `assets/templates/typst/`
+and every standalone diagram under `assets/diagrams/typst/`. Document and diagram
+sources are intentionally self-contained and do not import Typst Universe packages,
+so an installed skill can compile offline once the Typst executable is available.
+
+### Slides: static Typst or Touying
+
+Kami provides two deliberate 16:9 Typst slide paths, each in CN, EN, and KO:
+
+| Target family | Use when | Dependency and capability |
+|---|---|---|
+| `slides-weasy-typst*` | You need a stable, zero-package PDF deck or must build offline | Core Typst only. Static three-slide deck with explicit page breaks. |
+| `slides-touying-typst*` | You need native slide semantics, page counters, progressive reveals, speaker notes, or presenter-tool integration | Core Typst plus `@preview/touying:0.6.1`. Touying may download the fixed package on first build. |
+
+For example:
+
+```bash
+python3 scripts/build.py --verify slides-weasy-typst-en
+python3 scripts/build.py --verify slides-touying-typst-en
+```
+
+Touying sources import the version-pinned package from Typst Universe. An online
+first build normally caches it automatically. For a restricted environment, preload
+that package in Typst's package cache or choose `slides-weasy-typst*`; do not silently
+replace a Touying request with the static variant because progressive behavior and
+presenter support are materially different. Keep a Touying deck's configuration in
+its entry and shared `touying.typ` layer, create normal pages with `#slide[...]`, and
+use `#pause` only where an actual staged reveal clarifies the argument. A full slide
+is a self-contained assertion, not a sequence of fragments added for decoration.
+The target names are engine-qualified, for example:
+
+```bash
+python3 scripts/build.py --verify one-pager-typst-en
+python3 scripts/build.py --verify resume-typst-ko
+```
+
+The renderer invokes Typst with the repository root and bundled font directory,
+then applies the same PDF metadata, page-count, font, orphan, density, and visual
+checks used by the HTML path. Typst uses the internal family names of the bundled
+fonts: `TsangerJinKai02 W04` / `W05` and `Source Han Serif KR`. The repository's
+JetBrains Mono WOFF2 is an HTML/WeasyPrint asset; Typst labels use an installed
+monospace fallback because Typst font-path loading does not consume that WOFF2.
+
+Typst sources are not sent through CSS lint, HTML placeholder parsing, or
+content-to-HTML coverage. If a filled Typst source needs content coverage, validate
+the content IR before compilation and inspect the generated PDF after compilation.
+
 White is not a one-line background swap. Parchment also serves as the surface that
 `--ivory` cards, code blocks, and striped rows lift *off* of (they are "brighter
 than parchment"). Flip the page to white and those surfaces, only 1.5% lighter than

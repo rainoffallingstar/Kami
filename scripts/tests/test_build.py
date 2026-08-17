@@ -33,6 +33,8 @@ from build import (  # noqa: E402
     HTML_TARGETS,
     PPTX_TARGETS,
     SCREEN_TARGETS,
+    TYPST_DIAGRAM_TARGETS,
+    TYPST_TARGETS,
     main as build_main,
 )
 from checks import (  # noqa: E402
@@ -75,12 +77,16 @@ from shared import (  # noqa: E402
     ROOT as REPO_ROOT,
     SCREEN_TEMPLATES,
     TEMPLATES,
+    TYPST_DIAGRAM_TEMPLATES,
+    TYPST_TEMPLATES,
     build_targets,
     diagram_targets,
     load_checks_thresholds,
     marp_targets,
     pptx_targets,
     screen_targets,
+    typst_diagram_targets,
+    typst_targets,
 )
 import highlight as highlight_mod  # noqa: E402
 from highlight import highlight_code_blocks  # noqa: E402
@@ -360,6 +366,21 @@ def test_registry_consistency() -> None:
           set(screen_targets()) == set(SCREEN_TARGETS))
     check("HTML_TARGETS in build.py matches build_targets()",
           dict(HTML_TARGETS) == build_targets())
+    check("TYPST_TEMPLATES has 24 document variants plus 3 Touying decks", len(TYPST_TEMPLATES) == 27,
+          f"got {len(TYPST_TEMPLATES)}")
+    check("Typst target registry matches sources and build snapshot",
+          typst_targets() == dict(TYPST_TARGETS)
+          and all((TEMPLATES / spec.source).exists() for spec in TYPST_TEMPLATES.values())
+          and {"slides-touying-typst", "slides-touying-typst-en", "slides-touying-typst-ko"}
+          <= set(TYPST_TEMPLATES),
+          str(TYPST_TEMPLATES))
+    check("TYPST_DIAGRAM_TEMPLATES has all 18 diagram variants", len(TYPST_DIAGRAM_TEMPLATES) == 18,
+          f"got {len(TYPST_DIAGRAM_TEMPLATES)}")
+    check("Typst diagram registry matches sources and build snapshot",
+          typst_diagram_targets() == dict(TYPST_DIAGRAM_TARGETS)
+          and all((REPO_ROOT / "assets" / "diagrams" / spec.source).exists()
+                  for spec in TYPST_DIAGRAM_TEMPLATES.values()),
+          str(TYPST_DIAGRAM_TEMPLATES))
     check("DIAGRAM_TARGETS has 18 entries", len(DIAGRAM_TARGETS) == 18,
           f"got {len(DIAGRAM_TARGETS)}")
     check("DIAGRAM_TARGETS in build.py matches shared.diagram_targets()",
@@ -2294,7 +2315,7 @@ def test_build_cli_dispatches_new_checks() -> None:
     rc, out = run_build_args(["--doctor"])
     check("build.py --doctor reports capability status",
           rc in {0, 1} and "Kami doctor" in out
-          and "visual verification" in out,
+          and "page screenshots" in out and "typst" in out,
           out.strip()[:300])
 
 
@@ -2890,14 +2911,16 @@ def test_mcp_server_stdio_protocol() -> None:
           and init.get("serverInfo", {}).get("name") == "kami",
           json.dumps(init)[:200])
     tools = [t["name"] for t in replies.get(2, {}).get("result", {}).get("tools", [])]
-    check("mcp tools/list exposes the five kami tools",
-          tools == ["kami_templates", "kami_doctor", "kami_render", "kami_check", "kami_screenshot"],
+    check("mcp tools/list exposes the six kami tools",
+          tools == ["kami_templates", "kami_doctor", "kami_render", "kami_render_typst", "kami_check", "kami_screenshot"],
           str(tools))
     body = replies.get(3, {}).get("result", {}).get("content", [{}])[0].get("text", "{}")
     payload = json.loads(body)
     check("mcp kami_templates returns registries and schema types",
           set(payload.get("document_templates", {})) == set(HTML_TEMPLATES)
-          and set(payload.get("pptx_templates", {})) == {"slides", "slides-en"}
+          and set(payload.get("typst_document_templates", {})) == set(TYPST_TEMPLATES)
+           and set(payload.get("typst_diagram_templates", {})) == set(TYPST_DIAGRAM_TEMPLATES)
+           and set(payload.get("pptx_templates", {})) == {"slides", "slides-en"}
           and set(payload.get("marp_templates", {})) == set(MARP_TEMPLATES)
           and payload.get("content_schema_types"),
           body[:200])

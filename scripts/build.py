@@ -20,6 +20,7 @@ Usage:
     python3 scripts/build.py --sync               # check CSS token drift across templates
     python3 scripts/build.py --verify             # build all + page count + font checks
     python3 scripts/build.py --verify resume-en   # single target full verification
+    python3 scripts/build.py one-pager-typst-en   # compile one Typst template
     python3 scripts/build.py --check-placeholders path/to/doc.html
     python3 scripts/build.py --check-markdown path/to/doc.pdf
     python3 scripts/build.py --check-orphans      # scan example PDFs for orphan text
@@ -60,7 +61,7 @@ from lint import (
     scan_file,
 )
 from optional_deps import MissingDepError, run_doctor
-from render import build_slides, render_pdf
+from render import build_slides, render_pdf, render_typst_pdf
 from shared import (
     DIAGRAMS,
     EXAMPLES,
@@ -69,6 +70,8 @@ from shared import (
     diagram_targets,
     pptx_targets,
     screen_targets,
+    typst_diagram_targets,
+    typst_targets,
 )
 from site_facts import check_site_facts
 from tokens import sync_check
@@ -80,6 +83,8 @@ from visual import check_visual
 HTML_TARGETS: dict[str, tuple[str, int]] = build_targets()
 SCREEN_TARGETS: dict[str, str] = screen_targets()
 PPTX_TARGETS: dict[str, str] = pptx_targets()
+TYPST_TARGETS: dict[str, tuple[str, int]] = typst_targets()
+TYPST_DIAGRAM_TARGETS: dict[str, tuple[str, int]] = typst_diagram_targets()
 DIAGRAM_TARGETS: dict[str, str] = diagram_targets()
 
 
@@ -95,6 +100,31 @@ def build_html(name: str, source: str, max_pages: int,
     try:
         n = render_pdf(src, EXAMPLES / f"{name}.pdf")
     except MissingDepError as exc:
+        print(f"ERROR: {exc}")
+        return False
+
+    if max_pages and n > max_pages:
+        print(f"ERROR: {name}: {n} pages (limit {max_pages})")
+        return False
+    print(f"OK: {name}: {n} pages")
+    return True
+
+
+def build_typst(
+    name: str,
+    source: str,
+    max_pages: int,
+    src_dir: Path = TEMPLATES,
+) -> bool:
+    """Compile one Typst source without applying HTML/CSS template checks."""
+    src = src_dir / source
+    if not src.exists():
+        print(f"ERROR: {name}: source not found ({src})")
+        return False
+
+    try:
+        n = render_typst_pdf(src, EXAMPLES / f"{name}.pdf")
+    except (MissingDepError, RuntimeError) as exc:
         print(f"ERROR: {exc}")
         return False
 
@@ -128,6 +158,12 @@ def build_all() -> int:
     for name, source in SCREEN_TARGETS.items():
         if not build_screen_template(name, source):
             failures += 1
+    for name, (source, max_pages) in TYPST_TARGETS.items():
+        if not build_typst(name, source, max_pages):
+            failures += 1
+    for name, (source, max_pages) in TYPST_DIAGRAM_TARGETS.items():
+        if not build_typst(name, source, max_pages, src_dir=DIAGRAMS):
+            failures += 1
     for name, source in DIAGRAM_TARGETS.items():
         if not build_html(name, source, 0, src_dir=DIAGRAMS):
             failures += 1
@@ -147,13 +183,28 @@ def build_single(name: str) -> int:
     if name in SCREEN_TARGETS:
         ok = build_screen_template(name, SCREEN_TARGETS[name])
         return 0 if ok else 1
+    if name in TYPST_TARGETS:
+        source, max_pages = TYPST_TARGETS[name]
+        ok = build_typst(name, source, max_pages)
+        if ok:
+            show_fonts(EXAMPLES / f"{name}.pdf")
+        return 0 if ok else 1
+    if name in TYPST_DIAGRAM_TARGETS:
+        source, max_pages = TYPST_DIAGRAM_TARGETS[name]
+        ok = build_typst(name, source, max_pages, src_dir=DIAGRAMS)
+        if ok:
+            show_fonts(EXAMPLES / f"{name}.pdf")
+        return 0 if ok else 1
     if name in DIAGRAM_TARGETS:
         source = DIAGRAM_TARGETS[name]
         ok = build_html(name, source, 0, src_dir=DIAGRAMS)
         return 0 if ok else 1
     if name in PPTX_TARGETS:
         return 0 if build_slides(name) else 1
-    known = list(HTML_TARGETS) + list(SCREEN_TARGETS) + list(DIAGRAM_TARGETS) + list(PPTX_TARGETS)
+    known = (
+        list(HTML_TARGETS) + list(SCREEN_TARGETS) + list(TYPST_TARGETS)
+        + list(TYPST_DIAGRAM_TARGETS) + list(DIAGRAM_TARGETS) + list(PPTX_TARGETS)
+    )
     print(f"ERROR: unknown target: {name}. Known: {', '.join(known)}")
     return 2
 

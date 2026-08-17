@@ -38,6 +38,10 @@
       "description": "Render trusted local Kami HTML to PDF via WeasyPrint, with build-time code highlighting. Referenced file, HTTP, and HTTPS resources load with this process's permissions. Returns the PDF path and page count."
     },
     {
+      "name": "kami_render_typst",
+      "description": "Compile a trusted local Typst source to PDF via the Typst compiler, with repository-root imports and bundled font paths. Touying slide sources additionally require the version-pinned package in Typst's package cache. Returns the PDF path and page count."
+    },
+    {
       "name": "kami_check",
       "description": "Run Kami's deterministic checks for a file. HTML: placeholders + markdown residue (+ content coverage when a content IR JSON is given). PDF: markdown residue + orphans + density. JSON: content IR schema validation. Returns the legacy report plus stable rule IDs, findings, coverage status, and explicit degraded checks."
     },

@@ -16,7 +16,7 @@ from pathlib import Path
 from checks import scan_density
 from lint import scan_file
 from optional_deps import MissingDepError, require_pymupdf, require_pypdf_reader
-from render import build_slides, render_pdf
+from render import build_slides, render_pdf, render_typst_pdf
 from shared import (
     DIAGRAMS,
     EXAMPLES,
@@ -29,6 +29,8 @@ from shared import (
     pptx_targets,
     rel_to_root,
     screen_targets,
+    typst_diagram_targets,
+    typst_targets,
 )
 
 # Primary fonts expected in embedded PDF font names
@@ -384,6 +386,52 @@ def verify_target(name: str, source: str, max_pages: int, src_dir: Path) -> list
     return issues
 
 
+def verify_typst_target(
+    name: str,
+    source: str,
+    max_pages: int,
+    src_dir: Path = TEMPLATES,
+) -> list[str]:
+    """Compile a Typst target and apply PDF-native verification gates."""
+    issues: list[str] = []
+    src = src_dir / source
+    if not src.exists():
+        return [f"source not found: {src}"]
+
+    out = EXAMPLES / f"{name}.pdf"
+    try:
+        n = render_typst_pdf(src, out)
+    except (MissingDepError, RuntimeError) as exc:
+        return [str(exc)]
+
+    if max_pages and n > max_pages:
+        issues.append(f"page overflow: {n} pages (limit {max_pages})")
+
+    embedded = _pdf_font_names(out)
+    fallback_present = any(
+        keyword in font for font in embedded
+        for keyword in RECOGNIZABLE_FALLBACK_FONT_MARKERS
+    )
+    if src_dir == DIAGRAMS:
+        if not fallback_present:
+            issues.append(f"no recognizable font embedded in {out.name}")
+        return issues
+
+    is_en = name.endswith("-en")
+    is_ko = name.endswith("-ko")
+    expected = EN_PRIMARY_FONTS if is_en else (KO_PRIMARY_FONTS if is_ko else CN_PRIMARY_FONTS)
+    if not any(expected_font in font_name for expected_font in expected for font_name in embedded):
+        primary = next(iter(expected))
+        if not fallback_present:
+            issues.append(f"no recognizable font embedded in {out.name}")
+        elif os.environ.get("KAMI_ALLOW_FALLBACK_ONLY"):
+            print(f"  WARN: {name}: primary font ({primary}) not embedded; using fallback")
+        else:
+            issues.append(f"primary font ({primary}) not embedded; using fallback")
+
+    return issues
+
+
 def verify_screen_target(name: str, source: str) -> list[str]:
     """Lint a browser-only template via lint.scan_file."""
     src = TEMPLATES / source
@@ -401,9 +449,12 @@ def verify_all(target: str | None) -> int:
     screen_targets_map = screen_targets()
     diagram_targets_map = diagram_targets()
     pptx_targets_map = pptx_targets()
+    typst_targets_map = typst_targets()
+    typst_diagram_targets_map = typst_diagram_targets()
 
     targets_to_run: dict[str, tuple[str, int, Path] | None] = {}
     screen_targets_to_run: dict[str, str] = {}
+    typst_targets_to_run: dict[str, tuple[str, int, Path]] = {}
     if target:
         if target in html_targets:
             src, mp = html_targets[target]
@@ -412,6 +463,12 @@ def verify_all(target: str | None) -> int:
             screen_targets_to_run[target] = screen_targets_map[target]
         elif target in diagram_targets_map:
             targets_to_run[target] = (diagram_targets_map[target], 0, DIAGRAMS)
+        elif target in typst_targets_map:
+            source, max_pages = typst_targets_map[target]
+            typst_targets_to_run[target] = (source, max_pages, TEMPLATES)
+        elif target in typst_diagram_targets_map:
+            source, max_pages = typst_diagram_targets_map[target]
+            typst_targets_to_run[target] = (source, max_pages, DIAGRAMS)
         elif target in pptx_targets_map:
             targets_to_run[target] = None
         else:
@@ -424,6 +481,10 @@ def verify_all(target: str | None) -> int:
             screen_targets_to_run[name] = src
         for name, src in diagram_targets_map.items():
             targets_to_run[name] = (src, 0, DIAGRAMS)
+        for name, (source, max_pages) in typst_targets_map.items():
+            typst_targets_to_run[name] = (source, max_pages, TEMPLATES)
+        for name, (source, max_pages) in typst_diagram_targets_map.items():
+            typst_targets_to_run[name] = (source, max_pages, DIAGRAMS)
         for name in pptx_targets_map:
             targets_to_run[name] = None
 
@@ -435,6 +496,14 @@ def verify_all(target: str | None) -> int:
         else:
             source, max_pages, src_dir = config
             issues = verify_target(name, source, max_pages, src_dir)
+        if issues:
+            rows.append((f"ERROR: {name}", "; ".join(issues)))
+            failures += 1
+        else:
+            rows.append((f"OK: {name}", "ok"))
+
+    for name, (source, max_pages, src_dir) in typst_targets_to_run.items():
+        issues = verify_typst_target(name, source, max_pages, src_dir=src_dir)
         if issues:
             rows.append((f"ERROR: {name}", "; ".join(issues)))
             failures += 1

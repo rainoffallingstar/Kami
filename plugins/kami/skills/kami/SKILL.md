@@ -42,6 +42,8 @@ Skip and fall back to the brand profile defaults if the referenced path does not
 | Other languages (best-effort) | choose CJK or EN path by script coverage, then verify manually | choose `slides-weasy.html` or `slides-weasy-en.html`, then verify manually | use `slides.py` / `slides-en.py` only if PPTX is required | choose `slides-marp.md` or `slides-marp-en.md`, then verify manually |
 
 > Default to the WeasyPrint HTML path; fall back to PPTX (`slides*.py`) only when the user explicitly needs an editable deck.
+>
+> **Typst alternate path.** Every printable document theme also has a native Typst source under `assets/templates/typst/`, with `-en` and `-ko` locale variants. The 18 diagram types have matching native sources under `assets/diagrams/typst/`. Use the `*-typst` targets when a self-contained Typst source is preferred. Most Typst targets use no Typst Universe packages and compile offline once Typst is installed. Slides offer two explicit variants: `slides-weasy-typst*` is the zero-package static 16:9 PDF path, while `slides-touying-typst*` uses Touying for native slide structure, counters, optional progressive reveals, and presenter integrations. Use Touying only when the build environment can fetch or already caches `@preview/touying:0.6.1`; retain the zero-package path for offline builds. Both variants are verified through the same PDF page, font, density, orphan, and visual gates after compilation.
 
 Design, writing, production, and diagram guidance live in `CHEATSHEET.md` and `references/*.md`. Step 3's tier table decides how much of it to open; read the lowest tier that covers the task, not all of it.
 

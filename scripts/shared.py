@@ -155,6 +155,63 @@ MARP_TEMPLATES: dict[str, str] = {
     "slides-marp-en": "marp/slides-marp-en.md",
 }
 
+# Typst is an optional PDF renderer. Keep it separate from HTML_TEMPLATES:
+# HTML registries also drive CSS/HTML-specific linting and public template facts.
+TYPST_TEMPLATES: dict[str, TemplateSpec] = {
+    "one-pager-typst":       TemplateSpec("typst/one-pager.typ", 1),
+    "one-pager-typst-en":    TemplateSpec("typst/one-pager-en.typ", 1),
+    "one-pager-typst-ko":    TemplateSpec("typst/one-pager-ko.typ", 1),
+    "letter-typst":          TemplateSpec("typst/letter.typ", 1),
+    "letter-typst-en":       TemplateSpec("typst/letter-en.typ", 1),
+    "letter-typst-ko":       TemplateSpec("typst/letter-ko.typ", 1),
+    "long-doc-typst":        TemplateSpec("typst/long-doc.typ", 0),
+    "long-doc-typst-en":     TemplateSpec("typst/long-doc-en.typ", 0),
+    "long-doc-typst-ko":     TemplateSpec("typst/long-doc-ko.typ", 0),
+    "portfolio-typst":       TemplateSpec("typst/portfolio.typ", 0),
+    "portfolio-typst-en":    TemplateSpec("typst/portfolio-en.typ", 0),
+    "portfolio-typst-ko":    TemplateSpec("typst/portfolio-ko.typ", 0),
+    "resume-typst":          TemplateSpec("typst/resume.typ", 2),
+    "resume-typst-en":       TemplateSpec("typst/resume-en.typ", 2),
+    "resume-typst-ko":       TemplateSpec("typst/resume-ko.typ", 2),
+    # Zero-package static PDF deck, suitable for offline builds.
+    "slides-weasy-typst":    TemplateSpec("typst/slides-weasy.typ", 0),
+    "slides-weasy-typst-en": TemplateSpec("typst/slides-weasy-en.typ", 0),
+    "slides-weasy-typst-ko": TemplateSpec("typst/slides-weasy-ko.typ", 0),
+    # Touying presentation deck, with native slide semantics and optional dynamics.
+    "slides-touying-typst":    TemplateSpec("typst/slides-touying.typ", 0),
+    "slides-touying-typst-en": TemplateSpec("typst/slides-touying-en.typ", 0),
+    "slides-touying-typst-ko": TemplateSpec("typst/slides-touying-ko.typ", 0),
+    "equity-report-typst":       TemplateSpec("typst/equity-report.typ", 3),
+    "equity-report-typst-en":    TemplateSpec("typst/equity-report-en.typ", 3),
+    "equity-report-typst-ko":    TemplateSpec("typst/equity-report-ko.typ", 3),
+    "changelog-typst":       TemplateSpec("typst/changelog.typ", 2),
+    "changelog-typst-en":    TemplateSpec("typst/changelog-en.typ", 2),
+    "changelog-typst-ko":    TemplateSpec("typst/changelog-ko.typ", 2),
+}
+
+# Native Typst diagram variants are deliberately separate from DIAGRAM_TEMPLATES:
+# HTML diagrams remain the default and retain their existing CSS/WeasyPrint checks.
+TYPST_DIAGRAM_TEMPLATES: dict[str, TemplateSpec] = {
+    "diagram-architecture-typst":       TemplateSpec("typst/architecture.typ", 0),
+    "diagram-architecture-board-typst": TemplateSpec("typst/architecture-board.typ", 0),
+    "diagram-flowchart-typst":          TemplateSpec("typst/flowchart.typ", 0),
+    "diagram-quadrant-typst":           TemplateSpec("typst/quadrant.typ", 0),
+    "diagram-bar-chart-typst":          TemplateSpec("typst/bar-chart.typ", 0),
+    "diagram-line-chart-typst":         TemplateSpec("typst/line-chart.typ", 0),
+    "diagram-donut-chart-typst":        TemplateSpec("typst/donut-chart.typ", 0),
+    "diagram-state-machine-typst":      TemplateSpec("typst/state-machine.typ", 0),
+    "diagram-timeline-typst":           TemplateSpec("typst/timeline.typ", 0),
+    "diagram-swimlane-typst":           TemplateSpec("typst/swimlane.typ", 0),
+    "diagram-tree-typst":               TemplateSpec("typst/tree.typ", 0),
+    "diagram-layer-stack-typst":        TemplateSpec("typst/layer-stack.typ", 0),
+    "diagram-venn-typst":               TemplateSpec("typst/venn.typ", 0),
+    "diagram-candlestick-typst":        TemplateSpec("typst/candlestick.typ", 0),
+    "diagram-waterfall-typst":          TemplateSpec("typst/waterfall.typ", 0),
+    "diagram-sequence-typst":           TemplateSpec("typst/sequence.typ", 0),
+    "diagram-class-typst":              TemplateSpec("typst/class.typ", 0),
+    "diagram-er-typst":                 TemplateSpec("typst/er.typ", 0),
+}
+
 # Diagram HTMLs live in assets/diagrams and have no page-count contract.
 # Registered here (not in build.py) so all template registries share one home.
 # The Mermaid-sourced ones are produced via scripts/mermaid_normalize.py.
@@ -285,6 +342,19 @@ def pptx_targets() -> dict[str, str]:
 def marp_targets() -> dict[str, str]:
     """Return target -> source mapping for Markdown-first Marp decks."""
     return dict(MARP_TEMPLATES)
+
+
+def typst_targets() -> dict[str, tuple[str, int]]:
+    """Return target -> (source, max_pages) mapping for Typst PDF builds."""
+    return {name: (spec.source, spec.build_max_pages) for name, spec in TYPST_TEMPLATES.items()}
+
+
+def typst_diagram_targets() -> dict[str, tuple[str, int]]:
+    """Return target -> (source, max_pages) mapping for Typst diagrams."""
+    return {
+        name: (spec.source, spec.build_max_pages)
+        for name, spec in TYPST_DIAGRAM_TEMPLATES.items()
+    }
 
 
 def diagram_targets() -> dict[str, str]:

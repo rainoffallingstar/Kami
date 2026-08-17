@@ -47,6 +47,16 @@ def require_weasyprint_html():
         ) from exc
 
 
+def require_typst() -> str:
+    """Return the Typst compiler path or raise an actionable capability error."""
+    executable = shutil.which("typst")
+    if executable:
+        return executable
+    raise MissingDepError(
+        "missing typst. Install Typst from https://typst.app/docs/reference/"
+    )
+
+
 def _require_pypdf_attr(name: str):
     try:
         import pypdf
@@ -188,6 +198,10 @@ def doctor_report() -> dict:
             "pygments", "Pygments", "build-time code highlighting",
             lambda: _probe_module("pygments"), required=False,
         ),
+        _probe_dependency(
+            "typst", "typst", "Typst to PDF rendering",
+            require_typst, required=False,
+        ),
     ]
     fonts = [
         _probe_font(
@@ -229,6 +243,11 @@ def doctor_report() -> dict:
                 item["status"] == "available"
                 for item in dependencies
                 if item["name"] == "python-pptx"
+            ),
+            "typst_pdf_render": next(
+                item["status"] == "available"
+                for item in dependencies
+                if item["name"] == "typst"
             ),
         },
     }
